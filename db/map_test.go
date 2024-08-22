@@ -2,8 +2,8 @@ package db
 
 import "testing"
 
-func TestOrderedMap_Remove(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_Remove(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)
@@ -23,10 +23,6 @@ func TestOrderedMap_Remove(t *testing.T) {
 	keys := om.Keys()
 	if len(keys) != 2 {
 		t.Error("Expected length to be 2")
-	}
-
-	if keys[0] != "1" {
-		t.Error("Expected key 1")
 	}
 
 	if len(om.GetPendingDelete()) != 1 {
@@ -50,8 +46,8 @@ func TestOrderedMap_Remove(t *testing.T) {
 	}
 }
 
-func TestOrderedMap_GetPendingPersist(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_GetPendingPersist(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)
@@ -74,8 +70,8 @@ func TestOrderedMap_GetPendingPersist(t *testing.T) {
 	}
 }
 
-func TestOrderedMap_Get(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_Get(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)
@@ -87,8 +83,8 @@ func TestOrderedMap_Get(t *testing.T) {
 	}
 }
 
-func TestOrderedMap_Items(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_Items(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)
@@ -98,18 +94,10 @@ func TestOrderedMap_Items(t *testing.T) {
 	if len(items) != 3 {
 		t.Error("Expected 3 items")
 	}
-
-	if items[0].Key != "1" {
-		t.Error("Expected key 1")
-	}
-
-	if items[0].Value != 1 {
-		t.Error("Expected value 1")
-	}
 }
 
-func TestOrderedMap_KeyLengthMatches(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_KeyLengthMatches(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)
@@ -125,8 +113,8 @@ func TestOrderedMap_KeyLengthMatches(t *testing.T) {
 	}
 }
 
-func TestOrderedMap_KeyNotExist(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_KeyNotExist(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)
@@ -142,8 +130,8 @@ func TestOrderedMap_KeyNotExist(t *testing.T) {
 	}
 }
 
-func TestOrderedMap_MarkingDeleteAlsoMarksPending(t *testing.T) {
-	om := NewOrderedMap[int]()
+func TestTrackedMap_MarkingDeleteAlsoMarksPending(t *testing.T) {
+	om := NewTrackedMap[int]()
 	om.Set("1", 1)
 	om.Set("2", 2)
 	om.Set("3", 3)

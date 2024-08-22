@@ -9,14 +9,14 @@ import (
 )
 
 type Entities[T Entity[T]] struct {
-	items       *OrderedMap[T]
+	items       *TrackedMap[T]
 	persistence *Persistence[T]
 	file        string
 	mu          sync.Mutex
 }
 
 func CreateEntities[T Entity[T]](path string) *Entities[T] {
-	items := NewOrderedMap[T]()
+	items := NewTrackedMap[T]()
 	entities := &Entities[T]{file: path, items: items, persistence: NewPersistence[T](path, items)}
 	entities.Initialize()
 	return entities

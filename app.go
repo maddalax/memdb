@@ -28,13 +28,9 @@ func main() {
 	})
 
 	e.GET("/delete", func(c echo.Context) error {
-		count := 0
+		name := c.QueryParam("name")
 		db.Users.RemoveBy(func(u db.User) bool {
-			count++
-			if count%1000 == 0 {
-				fmt.Printf("Checking %d items\n", count)
-			}
-			return count%6 == 0
+			return strings.Contains(u.Username, name)
 		})
 		return c.NoContent(201)
 	})

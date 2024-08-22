@@ -11,12 +11,12 @@ import bolt "go.etcd.io/bbolt"
 
 type Persistence[T any] struct {
 	path  string
-	items *OrderedMap[T]
+	items *TrackedMap[T]
 	mu    sync.Mutex
 	disk  *bolt.DB
 }
 
-func NewPersistence[T any](path string, items *OrderedMap[T]) *Persistence[T] {
+func NewPersistence[T any](path string, items *TrackedMap[T]) *Persistence[T] {
 	db, err := bolt.Open(path, 0600, nil)
 
 	if err != nil {
