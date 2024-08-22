@@ -1,8 +1,6 @@
 package db
 
 import (
-	"bytes"
-	"encoding/json"
 	"iter"
 	"memdb/util"
 	"runtime"
@@ -42,34 +40,6 @@ func (e *Entities[T]) Load() {
 		toLoad = nil
 	})
 	runtime.GC()
-}
-
-func Serialize[T any](item T) bytes.Buffer {
-	var buf bytes.Buffer
-	result, err := json.Marshal(item)
-	if err != nil {
-		return bytes.Buffer{}
-	}
-	buf.Write(result)
-	buf.WriteString("\n")
-	return buf
-}
-
-func Deserialize[T any](line []byte) (*T, error) {
-	// Create a new Gob decoder
-	// Remove the newline character if present
-	line = bytes.TrimSuffix(line, []byte("\n"))
-	if len(line) == 0 {
-		return nil, nil
-	}
-
-	// Decode into a User struct
-	var entity = new(T)
-	err := json.Unmarshal(line, &entity)
-	if err != nil {
-		return nil, err
-	}
-	return entity, nil
 }
 
 func (e *Entities[T]) Add(item T) {
