@@ -19,6 +19,14 @@ func (s *SafeMap[T]) Store(key string, value T) {
 	s.m[key] = value
 }
 
+func (s *SafeMap[T]) StoreMany(items []KeyValue[T]) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range items {
+		s.m[items[i].Key] = items[i].Value
+	}
+}
+
 func (s *SafeMap[T]) Load(key string) (T, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

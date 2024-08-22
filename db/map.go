@@ -22,6 +22,15 @@ func NewOrderedMap[T any]() *OrderedMap[T] {
 	}
 }
 
+func (o *OrderedMap[T]) LoadMany(items []KeyValue[T]) {
+	o.values.StoreMany(items)
+	keys := make([]KeyValue[bool], len(items))
+	for i := range items {
+		keys[i] = KeyValue[bool]{Key: items[i].Key, Value: true}
+	}
+	o.keys.StoreMany(keys)
+}
+
 func (o *OrderedMap[T]) Set(key string, value T) {
 	if _, exists := o.values.Load(key); !exists {
 		o.keys.Store(key, true)
@@ -29,7 +38,6 @@ func (o *OrderedMap[T]) Set(key string, value T) {
 	}
 	o.values.Store(key, value)
 	o.markToPersist(key)
-
 }
 
 func (o *OrderedMap[T]) GetPendingPersist() []string {
