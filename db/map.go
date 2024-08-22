@@ -104,21 +104,17 @@ func (o *TrackedMap[T]) Length() int {
 }
 
 func (o *TrackedMap[T]) Items() []KeyValue[T] {
-	items := make([]KeyValue[T], o.keyLength)
-	index := 0
+	items := make([]KeyValue[T], 0, o.keyLength)
 	o.values.Range(func(key string, value T) {
-		items[index] = KeyValue[T]{Key: key, Value: value}
-		index++
+		items = append(items, KeyValue[T]{Key: key, Value: value})
 	})
 	return items
 }
 
 func (o *TrackedMap[T]) Values() []T {
-	values := make([]T, o.keyLength)
-	index := 0
+	values := make([]T, 0, o.keyLength)
 	o.values.Range(func(key string, value T) {
-		values[index] = value
-		index++
+		values = append(values, value)
 	})
 	return values
 }

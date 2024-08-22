@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/labstack/echo/v4"
-	"math"
-	"memdb/db"
+	"memdb/models"
 	"runtime"
 	"strconv"
 	"strings"
@@ -17,7 +16,7 @@ func main() {
 
 	e.GET("/insert", func(c echo.Context) error {
 		for i := 0; i < 5_000_000; i++ {
-			db.Users.Add(db.User{
+			models.Users.Add(models.User{
 				Id:       gofakeit.UUID(),
 				Username: gofakeit.Username(),
 				Email:    "",
@@ -29,7 +28,7 @@ func main() {
 
 	e.GET("/delete", func(c echo.Context) error {
 		name := c.QueryParam("name")
-		db.Users.RemoveBy(func(u db.User) bool {
+		models.Users.RemoveBy(func(u models.User) bool {
 			return strings.Contains(u.Username, name)
 		})
 		return c.NoContent(201)
@@ -45,11 +44,7 @@ func main() {
 		start := page * limit
 		name := c.QueryParam("name")
 
-		if name != "" {
-			limit = math.MaxInt32
-		}
-
-		results := db.Users.RangeFilter(start, start+limit, func(u db.User) bool {
+		results := models.Users.RangeFilter(start, start+limit, func(u models.User) bool {
 			if name != "" {
 				return strings.Contains(u.Username, name)
 			}
@@ -61,7 +56,7 @@ func main() {
 	go func() {
 		for {
 			PrintMemUsage()
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}()
 
@@ -77,7 +72,7 @@ func PrintMemUsage() {
 	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
 	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
 	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-	all := db.Users.Filter(func(u db.User) bool {
+	all := models.Users.Filter(func(u models.User) bool {
 		return true
 	})
 	fmt.Printf("Total users: %d\n", len(all))

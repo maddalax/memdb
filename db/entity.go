@@ -128,12 +128,22 @@ func (e *Entities[T]) RangeFilter(start int, end int, filter func(T) bool) []T {
 	if start > len(values) {
 		return []T{}
 	}
-	result := values[start:end]
-	items := make([]T, 0, end-start)
-	for _, v := range result {
+	items := make([]T, 0)
+	count := 0
+	for _, v := range values {
 		if filter(v) {
 			items = append(items, v)
+			count++
+			if count >= end {
+				break
+			}
 		}
 	}
-	return items
+	if end > len(items) {
+		end = len(items)
+	}
+	if start > len(items) {
+		return []T{}
+	}
+	return items[start:end]
 }
