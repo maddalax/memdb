@@ -3,7 +3,7 @@ package db
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"memdb/util"
 	"runtime"
 	"sync"
 )
@@ -32,11 +32,13 @@ func (e *Entities[T]) Initialize() {
 }
 
 func (e *Entities[T]) Load() {
-	e.persistence.Load(func(key string, item *T) {
-		e.items.Set(key, *item)
-		e.items.MarkPersisted(key)
+	util.TracePerf("Loading entities from disk bulk", func() {
+		toLoad := make([]KeyValue[T], 0)
+		e.persistence.Load(func(key string, item *T) {
+			toLoad = append(toLoad, KeyValue[T]{Key: key, Value: *item})
+		})
+		e.items.LoadMany(toLoad)
 	})
-	fmt.Printf("Loaded %d items from %s\n", e.items.Length(), e.file)
 	runtime.GC()
 }
 

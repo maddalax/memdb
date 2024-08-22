@@ -27,6 +27,7 @@ func (o *OrderedMap[T]) LoadMany(items []KeyValue[T]) {
 	keys := make([]KeyValue[bool], len(items))
 	for i := range items {
 		keys[i] = KeyValue[bool]{Key: items[i].Key, Value: true}
+		o.keyLength++
 	}
 	o.keys.StoreMany(keys)
 }
