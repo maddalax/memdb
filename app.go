@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/labstack/echo/v4"
+	"memdb/db"
 	"memdb/models"
 	"runtime"
 	"strconv"
@@ -41,20 +42,13 @@ func main() {
 			page = page - 1
 		}
 		limit, _ := strconv.Atoi(c.QueryParam("limit"))
-		//start := page * limit
+		start := page * limit
+		end := start + limit
 		//name := c.QueryParam("name")
 
-		results := make([]models.User, 0)
-
-		count := 0
-		for u := range models.Users.Each() {
-			results = append(results, u)
-			count++
-			if count >= limit {
-				break
-			}
-		}
-		return c.JSON(200, results)
+		return c.JSON(200, db.ToSlice(models.Users.RangeFilter(start, end, func(user models.User) bool {
+			return strings.Contains(user.Username, "Syd")
+		})))
 	})
 
 	go func() {

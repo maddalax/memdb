@@ -118,34 +118,26 @@ func (e *Entities[T]) Each() iter.Seq[T] {
 	}
 }
 
-//func (e *Entities[T]) Range(start int, end int) []T {
-//	return e.RangeFilter(start, end, func(T) bool { return true })
-//}
-//
-//func (e *Entities[T]) RangeFilter(start int, end int, filter func(T) bool) []T {
-//	values := e.items.Values()
-//	if end > len(values) {
-//		end = len(values)
-//	}
-//	if start > len(values) {
-//		return []T{}
-//	}
-//	items := make([]T, 0)
-//	count := 0
-//	for _, v := range values {
-//		if filter(v) {
-//			items = append(items, v)
-//			count++
-//			if count >= end {
-//				break
-//			}
-//		}
-//	}
-//	if end > len(items) {
-//		end = len(items)
-//	}
-//	if start > len(items) {
-//		return []T{}
-//	}
-//	return items[start:end]
-//}
+func (e *Entities[T]) Range(start int, end int) iter.Seq[T] {
+	return e.RangeFilter(start, end, func(T) bool { return true })
+}
+
+func (e *Entities[T]) RangeFilter(start int, end int, filter func(T) bool) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		count := 0
+		for v := range e.items.Values() {
+			if count < start {
+				continue
+			}
+			if count >= end {
+				break
+			}
+			count++
+			if filter(v) {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
