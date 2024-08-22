@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"encoding/json"
+	"iter"
 	"memdb/util"
 	"runtime"
 	"sync"
@@ -38,6 +39,7 @@ func (e *Entities[T]) Load() {
 			toLoad = append(toLoad, KeyValue[T]{Key: key, Value: *item})
 		})
 		e.items.LoadMany(toLoad)
+		toLoad = nil
 	})
 	runtime.GC()
 }
@@ -81,24 +83,24 @@ func (e *Entities[T]) AddMany(items []T) {
 }
 
 func (e *Entities[T]) Remove(item T) {
-	for _, v := range e.items.Items() {
-		if v.Value.Key() == item.Key() {
-			e.items.Remove(v.Key)
+	for id, _ := range e.items.Items() {
+		if id == item.Key() {
+			e.items.Remove(id)
 			break
 		}
 	}
 }
 
 func (e *Entities[T]) RemoveBy(fn func(T) bool) {
-	for _, v := range e.items.Items() {
-		if fn(v.Value) {
-			e.items.Remove(v.Key)
+	for id, v := range e.items.Items() {
+		if fn(v) {
+			e.items.Remove(id)
 		}
 	}
 }
 
 func (e *Entities[T]) Find(fn func(T) bool) *T {
-	for _, v := range e.items.Values() {
+	for v := range e.items.Values() {
 		if fn(v) {
 			return &v
 		}
@@ -106,44 +108,44 @@ func (e *Entities[T]) Find(fn func(T) bool) *T {
 	return nil
 }
 
-func (e *Entities[T]) Filter(fn func(T) bool) []T {
-	var items []T
-	for _, v := range e.items.Values() {
-		if fn(v) {
-			items = append(items, v)
-		}
-	}
-	return items
-}
-
-func (e *Entities[T]) Range(start int, end int) []T {
-	return e.RangeFilter(start, end, func(T) bool { return true })
-}
-
-func (e *Entities[T]) RangeFilter(start int, end int, filter func(T) bool) []T {
-	values := e.items.Values()
-	if end > len(values) {
-		end = len(values)
-	}
-	if start > len(values) {
-		return []T{}
-	}
-	items := make([]T, 0)
-	count := 0
-	for _, v := range values {
-		if filter(v) {
-			items = append(items, v)
-			count++
-			if count >= end {
-				break
+func (e *Entities[T]) Each() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v := range e.items.Values() {
+			if !yield(v) {
+				return
 			}
 		}
 	}
-	if end > len(items) {
-		end = len(items)
-	}
-	if start > len(items) {
-		return []T{}
-	}
-	return items[start:end]
 }
+
+//func (e *Entities[T]) Range(start int, end int) []T {
+//	return e.RangeFilter(start, end, func(T) bool { return true })
+//}
+//
+//func (e *Entities[T]) RangeFilter(start int, end int, filter func(T) bool) []T {
+//	values := e.items.Values()
+//	if end > len(values) {
+//		end = len(values)
+//	}
+//	if start > len(values) {
+//		return []T{}
+//	}
+//	items := make([]T, 0)
+//	count := 0
+//	for _, v := range values {
+//		if filter(v) {
+//			items = append(items, v)
+//			count++
+//			if count >= end {
+//				break
+//			}
+//		}
+//	}
+//	if end > len(items) {
+//		end = len(items)
+//	}
+//	if start > len(items) {
+//		return []T{}
+//	}
+//	return items[start:end]
+//}

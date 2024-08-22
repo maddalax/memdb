@@ -41,15 +41,19 @@ func main() {
 			page = page - 1
 		}
 		limit, _ := strconv.Atoi(c.QueryParam("limit"))
-		start := page * limit
-		name := c.QueryParam("name")
+		//start := page * limit
+		//name := c.QueryParam("name")
 
-		results := models.Users.RangeFilter(start, start+limit, func(u models.User) bool {
-			if name != "" {
-				return strings.Contains(u.Username, name)
+		results := make([]models.User, 0)
+
+		count := 0
+		for u := range models.Users.Each() {
+			results = append(results, u)
+			count++
+			if count >= limit {
+				break
 			}
-			return true
-		})
+		}
 		return c.JSON(200, results)
 	})
 
@@ -72,10 +76,11 @@ func PrintMemUsage() {
 	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
 	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
 	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-	all := models.Users.Filter(func(u models.User) bool {
-		return true
-	})
-	fmt.Printf("Total users: %d\n", len(all))
+	count := 0
+	for _ = range models.Users.Each() {
+		count++
+	}
+	fmt.Printf("Total users: %d\n", count)
 }
 
 func bToMb(b uint64) uint64 {

@@ -1,5 +1,9 @@
 package db
 
+import (
+	"iter"
+)
+
 type TrackedMap[T any] struct {
 	keyLength int
 	values    *SafeMap[T]
@@ -34,12 +38,14 @@ func (o *TrackedMap[T]) Set(key string, value T) {
 	o.markToPersist(key)
 }
 
-func (o *TrackedMap[T]) GetPendingPersist() []string {
-	keys := make([]string, 0)
-	o.toPersist.Range(func(key string, value bool) {
-		keys = append(keys, key)
-	})
-	return keys
+func (o *TrackedMap[T]) GetPendingPersist() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for key, _ := range o.toPersist.Range() {
+			if !yield(key) {
+				return
+			}
+		}
+	}
 }
 
 func (o *TrackedMap[T]) MarkPersisted(key string) {
@@ -62,12 +68,14 @@ func (o *TrackedMap[T]) isPendingDelete(key string) bool {
 	return exists
 }
 
-func (o *TrackedMap[T]) GetPendingDelete() []string {
-	keys := make([]string, 0)
-	o.toDelete.Range(func(key string, value bool) {
-		keys = append(keys, key)
-	})
-	return keys
+func (o *TrackedMap[T]) GetPendingDelete() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for key, _ := range o.toDelete.Range() {
+			if !yield(key) {
+				return
+			}
+		}
+	}
 }
 
 func (o *TrackedMap[T]) Remove(key string) {
@@ -91,30 +99,33 @@ func (o *TrackedMap[T]) Get(key string) (*T, bool) {
 	return &val, exists
 }
 
-func (o *TrackedMap[T]) Keys() []string {
-	keys := make([]string, 0, o.keyLength)
-	o.values.Range(func(key string, value T) {
-		keys = append(keys, key)
-	})
-	return keys
+func (o *TrackedMap[T]) Keys() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for key, _ := range o.values.Range() {
+			if !yield(key) {
+				return
+			}
+		}
+	}
 }
 
 func (o *TrackedMap[T]) Length() int {
 	return o.keyLength
 }
 
-func (o *TrackedMap[T]) Items() []KeyValue[T] {
-	items := make([]KeyValue[T], 0, o.keyLength)
-	o.values.Range(func(key string, value T) {
-		items = append(items, KeyValue[T]{Key: key, Value: value})
-	})
-	return items
+func (o *TrackedMap[T]) Items() iter.Seq2[string, T] {
+	return o.values.Range()
 }
 
-func (o *TrackedMap[T]) Values() []T {
-	values := make([]T, 0, o.keyLength)
-	o.values.Range(func(key string, value T) {
-		values = append(values, value)
-	})
-	return values
+func (o *TrackedMap[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for key, value := range o.values.Range() {
+			if o.isPendingDelete(key) {
+				continue
+			}
+			if !yield(value) {
+				return
+			}
+		}
+	}
 }

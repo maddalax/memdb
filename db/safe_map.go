@@ -1,6 +1,10 @@
 package db
 
-import "sync"
+import (
+	"iter"
+	"maps"
+	"sync"
+)
 
 type SafeMap[T any] struct {
 	mu sync.RWMutex
@@ -40,10 +44,8 @@ func (s *SafeMap[T]) Delete(key string) {
 	delete(s.m, key)
 }
 
-func (s *SafeMap[T]) Range(cb func(key string, value T)) {
+func (s *SafeMap[T]) Range() iter.Seq2[string, T] {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for k, v := range s.m {
-		cb(k, v)
-	}
+	return maps.All(s.m)
 }

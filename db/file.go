@@ -43,16 +43,9 @@ func (p *Persistence[T]) Start() {
 			p.mu.Lock()
 			setCount := 0
 			deleteCount := 0
-			items := p.items.GetPendingPersist()
-
-			if len(items) == 0 {
-				p.mu.Unlock()
-				continue
-			}
-
 			err := p.disk.Update(func(tx *bolt.Tx) error {
 				bucket := tx.Bucket([]byte("default"))
-				for _, key := range items {
+				for key := range p.items.GetPendingPersist() {
 					v, _ := p.items.Get(key)
 					if p.items.isPendingDelete(key) {
 						deleteCount++
