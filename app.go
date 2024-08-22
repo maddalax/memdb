@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/labstack/echo/v4"
 	"math"
 	"memdb/db"
@@ -13,9 +14,29 @@ import (
 func main() {
 	e := echo.New()
 
+	e.GET("/insert", func(c echo.Context) error {
+		db.Users.Add(db.User{
+			Id:       gofakeit.UUID(),
+			Username: gofakeit.Username(),
+			Email:    "",
+			Password: "password",
+		})
+		return c.NoContent(201)
+	})
+
+	e.GET("/delete", func(c echo.Context) error {
+		db.Users.RemoveBy(func(u db.User) bool {
+			return strings.Contains(u.Username, "Mitch")
+		})
+		return c.NoContent(201)
+	})
+
 	// Routes
 	e.GET("/users", func(c echo.Context) error {
 		page, _ := strconv.Atoi(c.QueryParam("page"))
+		if page > 0 {
+			page = page - 1
+		}
 		limit, _ := strconv.Atoi(c.QueryParam("limit"))
 		start := page * limit
 		name := c.QueryParam("name")
