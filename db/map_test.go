@@ -39,7 +39,7 @@ func TestOrderedMap_Remove(t *testing.T) {
 		t.Error("Expected 1 pending delete")
 	}
 
-	if len(om.keys) != 2 {
+	if om.keyLength != 2 {
 		t.Error("Expected 2 keys")
 	}
 
@@ -140,42 +140,6 @@ func TestOrderedMap_KeyNotExist(t *testing.T) {
 	if exists {
 		t.Error("Expected false")
 	}
-}
-
-func TestOrderedMap_GetByIndex(t *testing.T) {
-	om := NewOrderedMap[int]()
-	om.Set("1", 1)
-	om.Set("2", 2)
-	om.Set("3", 3)
-
-	key, val, exists := om.GetByIndex(1)
-
-	if key != "2" {
-		t.Error("Expected key 2")
-	}
-
-	if *val != 2 {
-		t.Error("Expected value 2")
-	}
-
-	if !exists {
-		t.Error("Expected true")
-	}
-
-	key, val, exists = om.GetByIndex(5)
-
-	if key != "" {
-		t.Error("Expected empty key")
-	}
-
-	if val != nil {
-		t.Error("Expected nil value")
-	}
-
-	if exists {
-		t.Error("Expected false")
-	}
-
 }
 
 func TestOrderedMap_MarkingDeleteAlsoMarksPending(t *testing.T) {

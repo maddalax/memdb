@@ -9,24 +9,32 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
 	e := echo.New()
 
 	e.GET("/insert", func(c echo.Context) error {
-		db.Users.Add(db.User{
-			Id:       gofakeit.UUID(),
-			Username: gofakeit.Username(),
-			Email:    "",
-			Password: "password",
-		})
+		for i := 0; i < 5_000_000; i++ {
+			db.Users.Add(db.User{
+				Id:       gofakeit.UUID(),
+				Username: gofakeit.Username(),
+				Email:    "",
+				Password: "password",
+			})
+		}
 		return c.NoContent(201)
 	})
 
 	e.GET("/delete", func(c echo.Context) error {
+		count := 0
 		db.Users.RemoveBy(func(u db.User) bool {
-			return strings.Contains(u.Username, "Mitch")
+			count++
+			if count%1000 == 0 {
+				fmt.Printf("Checking %d items\n", count)
+			}
+			return count%6 == 0
 		})
 		return c.NoContent(201)
 	})
@@ -54,6 +62,13 @@ func main() {
 		return c.JSON(200, results)
 	})
 
+	go func() {
+		for {
+			PrintMemUsage()
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
 	e.Start(":8080")
 
 }
@@ -66,6 +81,10 @@ func PrintMemUsage() {
 	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
 	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
 	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+	all := db.Users.Filter(func(u db.User) bool {
+		return true
+	})
+	fmt.Printf("Total users: %d\n", len(all))
 }
 
 func bToMb(b uint64) uint64 {

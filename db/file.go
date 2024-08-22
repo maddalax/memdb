@@ -41,19 +41,44 @@ func (p *Persistence[T]) Start() {
 	go func() {
 		for range timer.C {
 			p.mu.Lock()
-			count := 0
-			for _, key := range p.items.GetPendingPersist() {
-				v, _ := p.items.Get(key)
-				count++
-				if p.items.isPendingDelete(key) {
-					p.remove(key)
-				} else {
-					p.set(key, v)
-				}
-				p.items.MarkPersisted(key)
+			setCount := 0
+			deleteCount := 0
+			items := p.items.GetPendingPersist()
+
+			if len(items) == 0 {
+				p.mu.Unlock()
+				continue
 			}
-			if count > 0 {
-				fmt.Printf("finished persisting %d items to %s\n", count, p.path)
+
+			err := p.disk.Update(func(tx *bolt.Tx) error {
+				bucket := tx.Bucket([]byte("default"))
+				for _, key := range items {
+					v, _ := p.items.Get(key)
+					if p.items.isPendingDelete(key) {
+						deleteCount++
+						err := bucket.Delete([]byte(key))
+						if err != nil {
+							return err
+						}
+					} else {
+						setCount++
+						serialized := Serialize(*v)
+						err := bucket.Put([]byte(key), serialized.Bytes())
+						if err != nil {
+							return err
+						}
+					}
+					p.items.MarkPersisted(key)
+				}
+				return nil
+			})
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if setCount > 0 || deleteCount > 0 {
+				fmt.Printf("finished persistence. set: %d, delete: %d\n", setCount, deleteCount)
 			}
 			p.mu.Unlock()
 		}
@@ -77,36 +102,6 @@ func (p *Persistence[T]) Load(cb func(string, *T)) {
 			return err
 		}
 
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (p *Persistence[T]) set(key string, value *T) {
-	serialized := Serialize(*value)
-	// Add some key/value pairs to the bucket
-	err := p.disk.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("default"))
-		err := bucket.Put([]byte(key), serialized.Bytes())
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (p *Persistence[T]) remove(key string) {
-	err := p.disk.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("default"))
-		err := bucket.Delete([]byte(key))
-		if err != nil {
-			return err
-		}
 		return nil
 	})
 	if err != nil {

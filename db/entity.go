@@ -91,7 +91,6 @@ func (e *Entities[T]) RemoveBy(fn func(T) bool) {
 	for _, v := range e.items.Items() {
 		if fn(v.Value) {
 			e.items.Remove(v.Key)
-			break
 		}
 	}
 }
