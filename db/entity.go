@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"iter"
 	"memdb/util"
 	"runtime"
@@ -33,10 +34,23 @@ func (e *Entities[T]) Initialize() {
 func (e *Entities[T]) Load() {
 	util.TracePerf("Loading entities from disk bulk", func() {
 		toLoad := make([]KeyValue[T], 0)
+		total := 0
+		batch := 0
 		e.persistence.Load(func(key string, item *T) {
 			toLoad = append(toLoad, KeyValue[T]{Key: key, Value: *item})
+			total++
+			batch++
+			if batch == 10_00 {
+				e.items.LoadMany(toLoad)
+				toLoad = make([]KeyValue[T], 0)
+				batch = 0
+			}
+			if total%10_000 == 0 {
+				fmt.Printf("Loaded %d entities from %s\n", total, e.file)
+			}
 		})
 		e.items.LoadMany(toLoad)
+		fmt.Printf("Loaded %d entities from %s\n", total, e.file)
 		toLoad = nil
 	})
 	runtime.GC()

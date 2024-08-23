@@ -15,7 +15,7 @@ func main() {
 	e := echo.New()
 
 	e.GET("/insert", func(c echo.Context) error {
-		for i := 0; i < 5_000_000; i++ {
+		for i := 0; i < 1_000_000; i++ {
 			if i%1_000_000 == 0 {
 				fmt.Printf("Inserted %d users\n", i)
 			}

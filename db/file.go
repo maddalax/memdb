@@ -2,7 +2,7 @@ package db
 
 import (
 	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -118,7 +118,7 @@ func Serialize[T any](item T) bytes.Buffer {
 	var buffer bytes.Buffer
 
 	// Create a new encoder that writes to the buffer
-	encoder := gob.NewEncoder(&buffer)
+	encoder := json.NewEncoder(&buffer)
 	// Encode the struct into the buffer
 	err := encoder.Encode(item)
 	if err != nil {
@@ -129,7 +129,7 @@ func Serialize[T any](item T) bytes.Buffer {
 
 func Deserialize[T any](line []byte) (*T, error) {
 	buffer := bytes.NewBuffer(line)
-	decoder := gob.NewDecoder(buffer)
+	decoder := json.NewDecoder(buffer)
 
 	// Variable to hold the decoded data
 	decoded := new(T)
