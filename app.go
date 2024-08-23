@@ -6,16 +6,16 @@ import (
 	"github.com/labstack/echo/v4"
 	"memdb/db"
 	"memdb/models"
-	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
 	e := echo.New()
 
 	e.GET("/insert", func(c echo.Context) error {
-		for i := 0; i < 1_000_000; i++ {
+		for i := 0; i < 5_000_000; i++ {
 			if i%1_000_000 == 0 {
 				fmt.Printf("Inserted %d users\n", i)
 			}
@@ -53,12 +53,12 @@ func main() {
 		})))
 	})
 
-	//go func() {
-	//	for {
-	//		PrintMemUsage()
-	//		time.Sleep(1 * time.Second)
-	//	}
-	//}()
+	go func() {
+		for {
+			models.Users.PrintMetrics()
+			time.Sleep(2 * time.Second)
+		}
+	}()
 
 	err := e.Start(":8080")
 
@@ -66,21 +66,6 @@ func main() {
 		fmt.Println("Error starting server")
 	}
 
-}
-
-func PrintMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-	count := 0
-	for _ = range models.Users.Each() {
-		count++
-	}
-	fmt.Printf("Total users: %d\n", count)
 }
 
 func bToMb(b uint64) uint64 {

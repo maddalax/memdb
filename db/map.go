@@ -5,10 +5,22 @@ import (
 )
 
 type TrackedMap[T any] struct {
-	keyLength int
-	values    *SafeMap[T]
-	toPersist *SafeMap[bool]
-	toDelete  *SafeMap[bool]
+	keyLength      int
+	values         *SafeMap[T]
+	toPersist      *SafeMap[bool]
+	toDelete       *SafeMap[bool]
+	toPersistCount int
+	toDeleteCount  int
+	totalPersisted int
+	totalDeleted   int
+}
+
+type TrackedMapMetrics struct {
+	keyCount       int
+	toPersistCount int
+	toDeleteCount  int
+	totalPersisted int
+	totalDeleted   int
 }
 
 type KeyValue[T any] struct {
@@ -18,16 +30,32 @@ type KeyValue[T any] struct {
 
 func NewTrackedMap[T any]() *TrackedMap[T] {
 	return &TrackedMap[T]{
-		keyLength: 0,
-		values:    NewSafeMap[T](),
-		toPersist: NewSafeMap[bool](),
-		toDelete:  NewSafeMap[bool](),
+		keyLength:      0,
+		values:         NewSafeMap[T](),
+		toPersist:      NewSafeMap[bool](),
+		toDelete:       NewSafeMap[bool](),
+		toPersistCount: 0,
+		toDeleteCount:  0,
+		totalPersisted: 0,
+		totalDeleted:   0,
+	}
+}
+
+func (o *TrackedMap[T]) GetMetrics() TrackedMapMetrics {
+	return TrackedMapMetrics{
+		keyCount:       o.keyLength,
+		toPersistCount: o.toPersistCount,
+		toDeleteCount:  o.toDeleteCount,
+		totalPersisted: o.totalPersisted,
+		totalDeleted:   o.totalDeleted,
 	}
 }
 
 func (o *TrackedMap[T]) LoadMany(items []KeyValue[T]) {
 	o.values.StoreMany(items)
-	o.keyLength = len(items)
+	for _ = range items {
+		o.keyLength++
+	}
 }
 
 func (o *TrackedMap[T]) Set(key string, value T) {
@@ -50,17 +78,23 @@ func (o *TrackedMap[T]) GetPendingPersist() iter.Seq[string] {
 
 func (o *TrackedMap[T]) MarkPersisted(key string) {
 	o.toPersist.Delete(key)
+	o.toPersistCount--
+	o.totalPersisted++
 	if o.isPendingDelete(key) {
 		o.toDelete.Delete(key)
+		o.toDeleteCount--
+		o.totalDeleted++
 	}
 }
 
 func (o *TrackedMap[T]) markToPersist(key string) {
 	o.toPersist.Store(key, true)
+	o.toPersistCount++
 }
 
 func (o *TrackedMap[T]) markToDelete(key string) {
 	o.toDelete.Store(key, true)
+	o.toDeleteCount++
 }
 
 func (o *TrackedMap[T]) isPendingDelete(key string) bool {

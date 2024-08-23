@@ -31,6 +31,12 @@ func (e *Entities[T]) Initialize() {
 	e.Load()
 }
 
+func (e *Entities[T]) PrintMetrics() {
+	metrics := e.items.GetMetrics()
+	fmt.Printf("Entities: %d, ToPersist: %d, ToDelete: %d, Persisted: %d, Deleted: %d\n",
+		metrics.keyCount, metrics.toPersistCount, metrics.toDeleteCount, metrics.totalPersisted, metrics.totalDeleted)
+}
+
 func (e *Entities[T]) Load() {
 	util.TracePerf("Loading entities from disk bulk", func() {
 		toLoad := make([]KeyValue[T], 0)

@@ -45,10 +45,13 @@ func (s *SafeMap[T]) Delete(key string) {
 
 func (s *SafeMap[T]) Range() iter.Seq2[string, T] {
 	return func(yield func(string, T) bool) {
-		s.mu.Lock()
-		defer s.mu.Unlock()
+		s.mu.RLock()
+		defer s.mu.RUnlock()
 		for k, v := range s.m {
-			if !yield(k, v) {
+			s.mu.RUnlock()
+			y := yield(k, v)
+			s.mu.RLock()
+			if !y {
 				return
 			}
 		}
