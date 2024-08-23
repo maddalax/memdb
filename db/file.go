@@ -4,32 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/cockroachdb/pebble"
 	"log"
 	"sync"
 	"time"
 )
 
-import bolt "go.etcd.io/bbolt"
-
 type Persistence[T any] struct {
 	path  string
 	items *TrackedMap[T]
 	mu    sync.Mutex
-	disk  *bolt.DB
+	disk  *pebble.DB
 }
 
 func NewPersistence[T any](path string, items *TrackedMap[T]) *Persistence[T] {
-	db, err := bolt.Open(path, 0600, nil)
+	db, err := pebble.Open("./data", &pebble.Options{})
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create or open a bucket (a namespace within the database)
-	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("default"))
-		return err
-	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,30 +43,30 @@ func (p *Persistence[T]) Start() {
 				continue
 			}
 
-			err := p.disk.Update(func(tx *bolt.Tx) error {
-				bucket := tx.Bucket([]byte("default"))
-				for _, key := range items {
-					v, _ := p.items.Get(key)
-					if p.items.isPendingDelete(key) {
-						deleteCount++
-						persistedCount++
-						err := bucket.Delete([]byte(key))
-						if err != nil {
-							return err
-						}
-					} else {
-						setCount++
-						persistedCount++
-						serialized := Serialize(*v)
-						err := bucket.Put([]byte(key), serialized.Bytes())
-						if err != nil {
-							return err
-						}
+			batch := p.disk.NewBatch()
+
+			for _, key := range items {
+				v, _ := p.items.Get(key)
+				if p.items.isPendingDelete(key) {
+					deleteCount++
+					persistedCount++
+					err := batch.Delete([]byte(key), nil)
+					if err != nil {
+						log.Fatal(err)
 					}
-					p.items.MarkPersisted(key)
+				} else {
+					setCount++
+					persistedCount++
+					serialized := Serialize(*v)
+					err := batch.Set([]byte(key), serialized.Bytes(), nil)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
-				return nil
-			})
+				p.items.MarkPersisted(key)
+			}
+
+			err := batch.Commit(nil)
 
 			if err != nil {
 				log.Fatal(err)
@@ -91,26 +81,22 @@ func (p *Persistence[T]) Start() {
 }
 
 func (p *Persistence[T]) Load(cb func(string, *T)) {
-	err := p.disk.View(func(tx *bolt.Tx) error {
-		// Assume bucket exists and has keys
-		b := tx.Bucket([]byte("default"))
+	iter, err := p.disk.NewIter(nil)
 
-		err := b.ForEach(func(k, v []byte) error {
-			item, err := Deserialize[T](v)
-			if err != nil {
-				return err
-			}
-			cb(string(k), item)
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	for iter.First(); iter.Valid(); iter.Next() {
+		v, err := iter.ValueAndErr()
+		if err != nil {
+			log.Fatal(err)
+		}
+		item, err := Deserialize[T](v)
+		if err != nil {
+			log.Fatal(err)
+		}
+		cb(string(iter.Key()), item)
 	}
 }
 
