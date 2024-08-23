@@ -2,7 +2,6 @@ package db
 
 import (
 	"iter"
-	"maps"
 	"sync"
 )
 
@@ -45,7 +44,13 @@ func (s *SafeMap[T]) Delete(key string) {
 }
 
 func (s *SafeMap[T]) Range() iter.Seq2[string, T] {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return maps.All(s.m)
+	return func(yield func(string, T) bool) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for k, v := range s.m {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
 }

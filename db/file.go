@@ -2,7 +2,7 @@ package db
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"sync"
@@ -39,24 +39,34 @@ func NewPersistence[T any](path string, items *TrackedMap[T]) *Persistence[T] {
 
 func (p *Persistence[T]) Start() {
 	timer := time.NewTicker(100 * time.Millisecond)
+	persistedCount := 0
 
 	go func() {
 		for range timer.C {
 			p.mu.Lock()
 			setCount := 0
 			deleteCount := 0
+			items := ToSliceChunk(p.items.GetPendingPersist(), 100*1000)
+
+			if len(items) == 0 {
+				p.mu.Unlock()
+				continue
+			}
+
 			err := p.disk.Update(func(tx *bolt.Tx) error {
 				bucket := tx.Bucket([]byte("default"))
-				for key := range p.items.GetPendingPersist() {
+				for _, key := range items {
 					v, _ := p.items.Get(key)
 					if p.items.isPendingDelete(key) {
 						deleteCount++
+						persistedCount++
 						err := bucket.Delete([]byte(key))
 						if err != nil {
 							return err
 						}
 					} else {
 						setCount++
+						persistedCount++
 						serialized := Serialize(*v)
 						err := bucket.Put([]byte(key), serialized.Bytes())
 						if err != nil {
@@ -73,7 +83,7 @@ func (p *Persistence[T]) Start() {
 			}
 
 			if setCount > 0 || deleteCount > 0 {
-				fmt.Printf("finished persistence. set: %d, delete: %d\n", setCount, deleteCount)
+				fmt.Printf("finished persistence. set: %d, delete: %d, total: %d\n", setCount, deleteCount, persistedCount)
 			}
 			p.mu.Unlock()
 		}
@@ -105,29 +115,31 @@ func (p *Persistence[T]) Load(cb func(string, *T)) {
 }
 
 func Serialize[T any](item T) bytes.Buffer {
-	var buf bytes.Buffer
-	result, err := json.Marshal(item)
+	var buffer bytes.Buffer
+
+	// Create a new encoder that writes to the buffer
+	encoder := gob.NewEncoder(&buffer)
+	// Encode the struct into the buffer
+	err := encoder.Encode(item)
 	if err != nil {
-		return bytes.Buffer{}
+		log.Fatal("Encode error:", err)
 	}
-	buf.Write(result)
-	buf.WriteString("\n")
-	return buf
+	return buffer
 }
 
 func Deserialize[T any](line []byte) (*T, error) {
-	// Create a new Gob decoder
-	// Remove the newline character if present
-	line = bytes.TrimSuffix(line, []byte("\n"))
-	if len(line) == 0 {
-		return nil, nil
+	buffer := bytes.NewBuffer(line)
+	decoder := gob.NewDecoder(buffer)
+
+	// Variable to hold the decoded data
+	decoded := new(T)
+
+	// Decode the data into the variable
+	err := decoder.Decode(&decoded)
+
+	if err != nil {
+		log.Fatal("Decode error:", err)
 	}
 
-	// Decode into a User struct
-	var entity = new(T)
-	err := json.Unmarshal(line, &entity)
-	if err != nil {
-		return nil, err
-	}
-	return entity, nil
+	return decoded, nil
 }

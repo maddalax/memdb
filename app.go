@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func main() {
@@ -17,6 +16,9 @@ func main() {
 
 	e.GET("/insert", func(c echo.Context) error {
 		for i := 0; i < 5_000_000; i++ {
+			if i%1_000_000 == 0 {
+				fmt.Printf("Inserted %d users\n", i)
+			}
 			models.Users.Add(models.User{
 				Id:       gofakeit.UUID(),
 				Username: gofakeit.Username(),
@@ -44,21 +46,25 @@ func main() {
 		limit, _ := strconv.Atoi(c.QueryParam("limit"))
 		start := page * limit
 		end := start + limit
-		//name := c.QueryParam("name")
+		name := c.QueryParam("name")
 
 		return c.JSON(200, db.ToSlice(models.Users.RangeFilter(start, end, func(user models.User) bool {
-			return strings.Contains(user.Username, "Syd")
+			return strings.Contains(user.Username, name)
 		})))
 	})
 
-	go func() {
-		for {
-			PrintMemUsage()
-			time.Sleep(1 * time.Second)
-		}
-	}()
+	//go func() {
+	//	for {
+	//		PrintMemUsage()
+	//		time.Sleep(1 * time.Second)
+	//	}
+	//}()
 
-	e.Start(":8080")
+	err := e.Start(":8080")
+
+	if err != nil {
+		fmt.Println("Error starting server")
+	}
 
 }
 
