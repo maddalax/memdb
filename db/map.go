@@ -11,7 +11,7 @@ type Hooks[T any] struct {
 
 type TrackedMap[T any] struct {
 	keyLength      int
-	hooks          *Hooks[T]
+	hooks          []Hooks[T]
 	values         *SafeMap[T]
 	toPersist      *SafeMap[bool]
 	toDelete       *SafeMap[bool]
@@ -37,7 +37,7 @@ type KeyValue[T any] struct {
 func NewTrackedMap[T any]() *TrackedMap[T] {
 	return &TrackedMap[T]{
 		keyLength:      0,
-		hooks:          nil,
+		hooks:          make([]Hooks[T], 0),
 		values:         NewSafeMap[T](),
 		toPersist:      NewSafeMap[bool](),
 		toDelete:       NewSafeMap[bool](),
@@ -61,8 +61,8 @@ func (o *TrackedMap[T]) GetMetrics() TrackedMapMetrics {
 func (o *TrackedMap[T]) LoadMany(items map[string]T) {
 	o.values.StoreMany(items)
 	for k, v := range items {
-		if o.hooks != nil && o.hooks.OnSet != nil {
-			o.hooks.OnSet(k, v)
+		for _, hook := range o.hooks {
+			hook.OnSet(k, v)
 		}
 		o.keyLength++
 	}
@@ -74,8 +74,8 @@ func (o *TrackedMap[T]) Set(key string, value T) {
 	}
 	o.values.Store(key, value)
 	o.markToPersist(key)
-	if o.hooks != nil && o.hooks.OnSet != nil {
-		o.hooks.OnSet(key, value)
+	for _, hook := range o.hooks {
+		hook.OnSet(key, value)
 	}
 }
 
@@ -138,8 +138,22 @@ func (o *TrackedMap[T]) Remove(key string) {
 		o.markToPersist(key)
 		o.values.Delete(key)
 		o.keyLength--
-		if o.hooks != nil && o.hooks.OnRemove != nil {
-			o.hooks.OnRemove(key, entry)
+		for _, hook := range o.hooks {
+			hook.OnRemove(key, entry)
+		}
+	}
+}
+
+func (o *TrackedMap[T]) GetMany(keys map[string]bool) iter.Seq2[string, T] {
+	return func(yield func(string, T) bool) {
+		for k, v := range o.values.LoadMany(keys) {
+			if o.isPendingDelete(k) {
+				continue
+			}
+			y := yield(k, v)
+			if !y {
+				return
+			}
 		}
 	}
 }

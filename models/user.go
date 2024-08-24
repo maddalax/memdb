@@ -2,6 +2,7 @@ package models
 
 import (
 	"memdb/db"
+	"strings"
 )
 
 type User struct {
@@ -25,17 +26,15 @@ func (i Id) Key() string {
 
 var Users = db.CreateEntitiesWithHooks[User]("./users.json", db.Hooks[User]{
 	OnSet: func(key string, value User) {
-		//if strings.Contains(strings.ToLower(value.Email), "gmail") {
-		//	UsersWithGmail.Add(Id{Id: key})
-		//}
+
 	},
 	OnRemove: func(key string, value User) {
-		//if strings.Contains(strings.ToLower(value.Email), "gmail") {
-		//	UsersWithGmail.Remove(Id{Id: key})
-		//}
+
 	},
 })
 
-var UsersWithGmail = db.CreateEntities[Id]("./users_with_gmail.json")
+var UsersByEmail = db.CreateIndex(Users, func(user User) string {
+	return strings.Split(user.Email, "@")[1]
+})
 
 var Books = db.CreateEntities[User]("./books.json")

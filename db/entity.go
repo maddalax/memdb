@@ -15,9 +15,46 @@ type Entities[T Entity[T]] struct {
 	mu          sync.Mutex
 }
 
+type Index[T Entity[T]] struct {
+	items     map[string]map[string]bool
+	entity    *Entities[T]
+	transform func(T) string
+}
+
+func CreateIndex[T Entity[T]](entity *Entities[T], transform func(T) string) *Index[T] {
+	items := make(map[string]map[string]bool)
+	index := &Index[T]{items: items, entity: entity}
+
+	entity.items.hooks = append(entity.items.hooks, Hooks[T]{
+		OnSet: func(key string, value T) {
+			fieldKey := transform(value)
+			if _, ok := index.items[fieldKey]; !ok {
+				index.items[fieldKey] = make(map[string]bool)
+			}
+			index.items[fieldKey][key] = true
+		},
+		OnRemove: func(key string, value T) {
+			fieldKey := transform(value)
+			if _, ok := index.items[fieldKey]; !ok {
+				index.items[fieldKey] = make(map[string]bool)
+			}
+			delete(index.items[fieldKey], key)
+		},
+	})
+
+	return index
+}
+
+func (e *Index[T]) Each(key string) iter.Seq2[string, T] {
+	results := e.items[key]
+	if results == nil {
+		return func(yield func(string, T) bool) {}
+	}
+	return e.entity.items.GetMany(results)
+}
+
 func CreateEntities[T Entity[T]](path string) *Entities[T] {
 	items := NewTrackedMap[T]()
-	items.hooks = &Hooks[T]{}
 	entities := &Entities[T]{file: path, items: items, persistence: NewPersistence[T](path, items)}
 	entities.Initialize()
 	return entities
@@ -25,7 +62,7 @@ func CreateEntities[T Entity[T]](path string) *Entities[T] {
 
 func CreateEntitiesWithHooks[T Entity[T]](path string, hooks Hooks[T]) *Entities[T] {
 	items := NewTrackedMap[T]()
-	items.hooks = &hooks
+	items.hooks = append(items.hooks, hooks)
 	entities := &Entities[T]{file: path, items: items, persistence: NewPersistence[T](path, items)}
 	entities.Initialize()
 	return entities

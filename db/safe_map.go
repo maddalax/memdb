@@ -37,6 +37,24 @@ func (s *SafeMap[T]) Load(key string) (T, bool) {
 	return value, ok
 }
 
+func (s *SafeMap[T]) LoadMany(keys map[string]bool) iter.Seq2[string, T] {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return func(yield func(string, T) bool) {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		for k := range keys {
+			s.mu.RUnlock()
+			record := s.m[k]
+			y := yield(k, record)
+			s.mu.RLock()
+			if !y {
+				return
+			}
+		}
+	}
+}
+
 func (s *SafeMap[T]) Delete(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

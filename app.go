@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"memdb/db"
 	"memdb/models"
+	"memdb/util"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,7 @@ func main() {
 			name := gofakeit.Username()
 			email := gofakeit.Email()
 			if gofakeit.Bool() {
-				email = fmt.Sprintf("%s@%s.com", name, "gmail.com")
+				email = fmt.Sprintf("%s@%s", name, "gmail.com")
 			}
 			models.Users.Add(models.User{
 				Id:       gofakeit.UUID(),
@@ -32,6 +33,24 @@ func main() {
 			})
 		}
 		return c.NoContent(201)
+	})
+
+	e.GET("/perf", func(c echo.Context) error {
+		email := c.QueryParam("email")
+		count := 0
+		util.TracePerf("count users via index", func() {
+			for _, _ = range models.UsersByEmail.Each(email) {
+				count++
+			}
+		})
+		util.TracePerf("count users via each", func() {
+			for u := range models.Users.Each() {
+				if strings.HasSuffix(u.Email, email) {
+					count++
+				}
+			}
+		})
+		return c.JSON(200, count)
 	})
 
 	e.GET("/delete", func(c echo.Context) error {
@@ -44,7 +63,7 @@ func main() {
 
 	e.GET("/sydne", func(c echo.Context) error {
 		return c.JSON(200, db.ToSlice(models.Users.FilterLimit(100, func(user models.User) bool {
-			return strings.Contains(user.Email, "@gmail.com") && strings.Contains(user.Username, "Jon")
+			return true
 		})))
 	})
 
@@ -67,7 +86,6 @@ func main() {
 	go func() {
 		for {
 			models.Users.PrintMetrics()
-			models.UsersWithGmail.PrintMetrics()
 			models.Books.PrintMetrics()
 			time.Sleep(2 * time.Second)
 		}
