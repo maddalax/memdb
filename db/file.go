@@ -3,7 +3,6 @@ package db
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/cockroachdb/pebble"
 	"log"
 	"sync"
@@ -72,9 +71,17 @@ func (p *Persistence[T]) Start() {
 				log.Fatal(err)
 			}
 
-			if setCount > 0 || deleteCount > 0 {
-				fmt.Printf("finished persistence. set: %d, delete: %d, total: %d\n", setCount, deleteCount, persistedCount)
+			newPendingPersistCount := 0
+			newPendingDeleteCount := 0
+			for _ = range p.items.GetPendingPersist() {
+				newPendingPersistCount++
 			}
+			for _ = range p.items.GetPendingDelete() {
+				newPendingDeleteCount++
+			}
+			p.items.toPersistCount = newPendingPersistCount
+			p.items.toDeleteCount = newPendingDeleteCount
+
 			p.mu.Unlock()
 		}
 	}()

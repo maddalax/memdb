@@ -85,6 +85,12 @@ func (o *TrackedMap[T]) MarkPersisted(key string) {
 		o.toDeleteCount--
 		o.totalDeleted++
 	}
+	if o.toPersistCount < 0 {
+		o.toPersistCount = 0
+	}
+	if o.toDeleteCount < 0 {
+		o.toDeleteCount = 0
+	}
 }
 
 func (o *TrackedMap[T]) markToPersist(key string) {
