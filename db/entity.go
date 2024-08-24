@@ -37,7 +37,8 @@ type Entity[T any] interface {
 
 func (e *Entities[T]) Initialize() {
 	e.persistence.Start()
-	e.Load()
+	AddLoad()
+	go e.Load()
 }
 
 func (e *Entities[T]) PrintMetrics() {
@@ -75,6 +76,7 @@ func (e *Entities[T]) Load() {
 		e.items.LoadMany(toLoad)
 		fmt.Printf("Loaded %d entities from %s\n", total, e.file)
 		toLoad = nil
+		DoneLoad()
 	})
 	runtime.GC()
 }

@@ -15,7 +15,7 @@ func main() {
 	e := echo.New()
 
 	e.GET("/insert", func(c echo.Context) error {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 1_000_000; i++ {
 			if i%1_000_000 == 0 {
 				fmt.Printf("Inserted %d users\n", i)
 			}
@@ -68,10 +68,12 @@ func main() {
 		for {
 			models.Users.PrintMetrics()
 			models.UsersWithGmail.PrintMetrics()
+			models.Books.PrintMetrics()
 			time.Sleep(2 * time.Second)
 		}
 	}()
 
+	db.WaitForLoad()
 	err := e.Start(":8080")
 
 	if err != nil {
