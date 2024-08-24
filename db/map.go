@@ -58,11 +58,11 @@ func (o *TrackedMap[T]) GetMetrics() TrackedMapMetrics {
 	}
 }
 
-func (o *TrackedMap[T]) LoadMany(items []KeyValue[T]) {
+func (o *TrackedMap[T]) LoadMany(items map[string]T) {
 	o.values.StoreMany(items)
-	for item := range items {
+	for k, v := range items {
 		if o.hooks != nil && o.hooks.OnSet != nil {
-			o.hooks.OnSet(items[item].Key, items[item].Value)
+			o.hooks.OnSet(k, v)
 		}
 		o.keyLength++
 	}

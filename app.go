@@ -15,7 +15,7 @@ func main() {
 	e := echo.New()
 
 	e.GET("/insert", func(c echo.Context) error {
-		for i := 0; i < 500_000; i++ {
+		for i := 0; i < 100; i++ {
 			if i%1_000_000 == 0 {
 				fmt.Printf("Inserted %d users\n", i)
 			}
@@ -37,7 +37,7 @@ func main() {
 	e.GET("/delete", func(c echo.Context) error {
 		name := c.QueryParam("name")
 		models.Users.RemoveBy(func(u models.User) bool {
-			return strings.Contains(u.Username, name)
+			return strings.Contains(strings.ToLower(u.Username), strings.ToLower(name)) || strings.Contains(strings.ToLower(u.Email), strings.ToLower(name))
 		})
 		return c.NoContent(201)
 	})

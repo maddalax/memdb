@@ -22,11 +22,11 @@ func (s *SafeMap[T]) Store(key string, value T) {
 	s.m[key] = value
 }
 
-func (s *SafeMap[T]) StoreMany(items []KeyValue[T]) {
+func (s *SafeMap[T]) StoreMany(items map[string]T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i := range items {
-		s.m[items[i].Key] = items[i].Value
+	for k, v := range items {
+		s.m[k] = v
 	}
 }
 

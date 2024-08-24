@@ -1,29 +1,37 @@
 package db
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
-	"github.com/cockroachdb/pebble"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
+
+type Event[T any] struct {
+	Type  string
+	Key   string
+	Time  int64
+	Value T
+}
 
 type Persistence[T any] struct {
 	path  string
 	items *TrackedMap[T]
 	mu    sync.Mutex
-	disk  *pebble.DB
+	disk  *os.File
 }
 
 func NewPersistence[T any](path string, items *TrackedMap[T]) *Persistence[T] {
-	db, err := pebble.Open("./data/"+path, &pebble.Options{})
+	disk, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &Persistence[T]{path: path, disk: db, mu: sync.Mutex{}, items: items}
+	return &Persistence[T]{path: path, disk: disk, mu: sync.Mutex{}, items: items}
 }
 
 func (p *Persistence[T]) Start() {
@@ -42,22 +50,25 @@ func (p *Persistence[T]) Start() {
 				continue
 			}
 
-			batch := p.disk.NewBatch()
+			writer := bufio.NewWriter(p.disk)
 
 			for _, key := range items {
 				v, _ := p.items.Get(key)
 				if p.items.isPendingDelete(key) {
 					deleteCount++
 					persistedCount++
-					err := batch.Delete([]byte(key), nil)
+					event := Event[T]{Type: "delete", Key: key, Time: time.Now().Unix()}
+					serialized := Serialize(event)
+					_, err := writer.Write(serialized.Bytes())
 					if err != nil {
 						log.Fatal(err)
 					}
 				} else {
 					setCount++
 					persistedCount++
-					serialized := Serialize(*v)
-					err := batch.Set([]byte(key), serialized.Bytes(), nil)
+					event := Event[T]{Type: "set", Key: key, Value: *v, Time: time.Now().Unix()}
+					serialized := Serialize(event)
+					_, err := writer.Write(serialized.Bytes())
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -65,7 +76,7 @@ func (p *Persistence[T]) Start() {
 				p.items.MarkPersisted(key)
 			}
 
-			err := batch.Commit(nil)
+			err := writer.Flush()
 
 			if err != nil {
 				log.Fatal(err)
@@ -87,23 +98,26 @@ func (p *Persistence[T]) Start() {
 	}()
 }
 
-func (p *Persistence[T]) Load(cb func(string, *T)) {
-	iter, err := p.disk.NewIter(nil)
+func (p *Persistence[T]) Load(cb func(event *Event[T])) {
+	disk, err := os.Open(p.path)
+	defer disk.Close()
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for iter.First(); iter.Valid(); iter.Next() {
-		v, err := iter.ValueAndErr()
+	scanner := bufio.NewScanner(disk)
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		event, err := Deserialize[Event[T]](line)
 		if err != nil {
 			log.Fatal(err)
 		}
-		item, err := Deserialize[T](v)
-		if err != nil {
-			log.Fatal(err)
-		}
-		cb(string(iter.Key()), item)
+		cb(event)
 	}
 }
 
@@ -121,6 +135,7 @@ func Serialize[T any](item T) bytes.Buffer {
 }
 
 func Deserialize[T any](line []byte) (*T, error) {
+
 	buffer := bytes.NewBuffer(line)
 	decoder := json.NewDecoder(buffer)
 

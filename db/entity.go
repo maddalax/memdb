@@ -48,16 +48,24 @@ func (e *Entities[T]) PrintMetrics() {
 
 func (e *Entities[T]) Load() {
 	util.TracePerf("Loading entities from disk bulk", func() {
-		toLoad := make([]KeyValue[T], 0)
+		toLoad := make(map[string]T)
 		total := 0
 		batch := 0
-		e.persistence.Load(func(key string, item *T) {
-			toLoad = append(toLoad, KeyValue[T]{Key: key, Value: *item})
+		e.persistence.Load(func(event *Event[T]) {
+			if event.Type == "delete" {
+				e.items.values.Delete(event.Key)
+				delete(toLoad, event.Key)
+				return
+			}
+
+			key := event.Key
+			item := &event.Value
+			toLoad[key] = *item
 			total++
 			batch++
 			if batch == 10_00 {
 				e.items.LoadMany(toLoad)
-				toLoad = make([]KeyValue[T], 0)
+				toLoad = make(map[string]T)
 				batch = 0
 			}
 			if total%10_000 == 0 {
