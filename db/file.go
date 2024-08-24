@@ -17,7 +17,7 @@ type Persistence[T any] struct {
 }
 
 func NewPersistence[T any](path string, items *TrackedMap[T]) *Persistence[T] {
-	db, err := pebble.Open("./data", &pebble.Options{})
+	db, err := pebble.Open("./data/"+path, &pebble.Options{})
 
 	if err != nil {
 		log.Fatal(err)

@@ -15,14 +15,19 @@ func main() {
 	e := echo.New()
 
 	e.GET("/insert", func(c echo.Context) error {
-		for i := 0; i < 5_000_000; i++ {
+		for i := 0; i < 500_000; i++ {
 			if i%1_000_000 == 0 {
 				fmt.Printf("Inserted %d users\n", i)
+			}
+			name := gofakeit.Username()
+			email := gofakeit.Email()
+			if gofakeit.Bool() {
+				email = fmt.Sprintf("%s@%s.com", name, "gmail.com")
 			}
 			models.Users.Add(models.User{
 				Id:       gofakeit.UUID(),
 				Username: gofakeit.Username(),
-				Email:    "",
+				Email:    email,
 				Password: "password",
 			})
 		}
@@ -35,6 +40,12 @@ func main() {
 			return strings.Contains(u.Username, name)
 		})
 		return c.NoContent(201)
+	})
+
+	e.GET("/sydne", func(c echo.Context) error {
+		return c.JSON(200, db.ToSlice(models.Users.FilterLimit(100, func(user models.User) bool {
+			return strings.Contains(user.Email, "@gmail.com") && strings.Contains(user.Username, "Jon")
+		})))
 	})
 
 	// Routes
@@ -56,6 +67,7 @@ func main() {
 	go func() {
 		for {
 			models.Users.PrintMetrics()
+			models.UsersWithGmail.PrintMetrics()
 			time.Sleep(2 * time.Second)
 		}
 	}()

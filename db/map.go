@@ -4,8 +4,14 @@ import (
 	"iter"
 )
 
+type Hooks[T any] struct {
+	OnSet    func(key string, value T)
+	OnRemove func(key string, value T)
+}
+
 type TrackedMap[T any] struct {
 	keyLength      int
+	hooks          *Hooks[T]
 	values         *SafeMap[T]
 	toPersist      *SafeMap[bool]
 	toDelete       *SafeMap[bool]
@@ -31,6 +37,7 @@ type KeyValue[T any] struct {
 func NewTrackedMap[T any]() *TrackedMap[T] {
 	return &TrackedMap[T]{
 		keyLength:      0,
+		hooks:          nil,
 		values:         NewSafeMap[T](),
 		toPersist:      NewSafeMap[bool](),
 		toDelete:       NewSafeMap[bool](),
@@ -53,7 +60,10 @@ func (o *TrackedMap[T]) GetMetrics() TrackedMapMetrics {
 
 func (o *TrackedMap[T]) LoadMany(items []KeyValue[T]) {
 	o.values.StoreMany(items)
-	for _ = range items {
+	for item := range items {
+		if o.hooks != nil && o.hooks.OnSet != nil {
+			o.hooks.OnSet(items[item].Key, items[item].Value)
+		}
 		o.keyLength++
 	}
 }
@@ -64,6 +74,9 @@ func (o *TrackedMap[T]) Set(key string, value T) {
 	}
 	o.values.Store(key, value)
 	o.markToPersist(key)
+	if o.hooks != nil && o.hooks.OnSet != nil {
+		o.hooks.OnSet(key, value)
+	}
 }
 
 func (o *TrackedMap[T]) GetPendingPersist() iter.Seq[string] {
@@ -119,12 +132,15 @@ func (o *TrackedMap[T]) GetPendingDelete() iter.Seq[string] {
 }
 
 func (o *TrackedMap[T]) Remove(key string) {
-	_, exists := o.values.Load(key)
+	entry, exists := o.values.Load(key)
 	if exists {
 		o.markToDelete(key)
 		o.markToPersist(key)
 		o.values.Delete(key)
 		o.keyLength--
+		if o.hooks != nil && o.hooks.OnRemove != nil {
+			o.hooks.OnRemove(key, entry)
+		}
 	}
 }
 

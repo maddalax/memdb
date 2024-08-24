@@ -17,6 +17,15 @@ type Entities[T Entity[T]] struct {
 
 func CreateEntities[T Entity[T]](path string) *Entities[T] {
 	items := NewTrackedMap[T]()
+	items.hooks = &Hooks[T]{}
+	entities := &Entities[T]{file: path, items: items, persistence: NewPersistence[T](path, items)}
+	entities.Initialize()
+	return entities
+}
+
+func CreateEntitiesWithHooks[T Entity[T]](path string, hooks Hooks[T]) *Entities[T] {
+	items := NewTrackedMap[T]()
+	items.hooks = &hooks
 	entities := &Entities[T]{file: path, items: items, persistence: NewPersistence[T](path, items)}
 	entities.Initialize()
 	return entities
@@ -33,8 +42,8 @@ func (e *Entities[T]) Initialize() {
 
 func (e *Entities[T]) PrintMetrics() {
 	metrics := e.items.GetMetrics()
-	fmt.Printf("Entities: %d, ToPersist: %d, ToDelete: %d, Persisted: %d, Deleted: %d\n",
-		metrics.keyCount, metrics.toPersistCount, metrics.toDeleteCount, metrics.totalPersisted, metrics.totalDeleted)
+	fmt.Printf("Path: %s, Entities: %d, ToPersist: %d, ToDelete: %d, Persisted: %d, Deleted: %d\n",
+		e.file, metrics.keyCount, metrics.toPersistCount, metrics.toDeleteCount, metrics.totalPersisted, metrics.totalDeleted)
 }
 
 func (e *Entities[T]) Load() {
@@ -102,6 +111,37 @@ func (e *Entities[T]) Each() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for v := range e.items.Values() {
 			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
+func (e *Entities[T]) Filter(filter func(T) bool) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v := range e.items.Values() {
+			if !filter(v) {
+				continue
+			}
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
+func (e *Entities[T]) FilterLimit(limit int, filter func(T) bool) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		count := 0
+		for v := range e.items.Values() {
+			if !filter(v) {
+				continue
+			}
+			count++
+			if !yield(v) {
+				return
+			}
+			if count >= limit {
 				return
 			}
 		}
